@@ -1,0 +1,42 @@
+{
+  "name": "ngotag-artillery",
+  "version": "1.0.0",
+  "description": "Artillery load testing for DIDComm mediator using Credo-TS",
+  "main": "tests/processor.js",
+  "scripts": {
+    "test": "make test-basic",
+    "test:medium": "make test-medium",
+    "test:large": "make test-large",
+    "test:custom": "make test-custom",
+    "test:ramp": "make test-ramp",
+    "test:burst": "make test-burst",
+    "test:sustained": "make test-sustained",
+    "test:stress": "make stress-test",
+    "clean": "make clean",
+    "install-deps": "npm install",
+    "check-configs": "make check-configs"
+  },
+  "keywords": [
+    "artillery",
+    "load-testing",
+    "didcomm",
+    "mediator",
+    "credo-ts",
+    "aries"
+  ],
+  "author": "Dev Raj Dungana",
+  "license": "ISC",
+  "dependencies": {
+    "@credo-ts/askar": "^0.5.15",
+    "@credo-ts/cheqd": "^0.5.15",
+    "@credo-ts/core": "^0.5.15",
+    "@credo-ts/node": "^0.5.15",
+    "@hyperledger/aries-askar-nodejs": "^0.2.3",
+    "artillery": "^2.0.23",
+    "dotenv": "^17.2.0",
+    "ethers": "^6.13.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

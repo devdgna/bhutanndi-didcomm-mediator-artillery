@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment Variables
+.env
+
+# Test Results
+results-*.json
+report-*.html
+
+# Temporary Files
+temp-*.yml
+temp-*.json
+
+# Logs
+*.log
+logs/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Artillery specific
+artillery_*
+.artillery/
+
+# Runtime
+.askar/
+.indy/

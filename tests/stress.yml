@@ -1,0 +1,28 @@
+config:
+  target: "https://animo-mediator-qa.ngotag.com"
+  phases:
+    # Gradual stress ramp: 1 to 100 wallets per second over 2 minutes
+    - duration: 120
+      arrivalRate: 1
+      rampTo: 100
+      name: "Stress Ramp"
+      
+    # Maximum stress: 100 wallets per second for 1 minute
+    - duration: 60
+      arrivalRate: 100
+      name: "Maximum Stress"
+      
+    # Gradual cooldown: 100 to 1 wallets per second over 2 minutes  
+    - duration: 120
+      arrivalRate: 100
+      rampTo: 1
+      name: "Stress Cooldown"
+      
+  processor: "./processor.js"
+  environments:
+    NODE_NO_WARNINGS: 1
+
+scenarios:
+  - name: "Stress Test"
+    flow:
+      - function: "connectToMediator"
