@@ -204,15 +204,14 @@ program
 
     console.log(`🚀 Running ${size} quick test...`);
     
-    // Use the test command with predefined config
-    program.parse([
-      'node', 'cli.js', 'test',
-      '-w', config.wallets.toString(),
-      '-d', config.duration.toString(),
-      '-r', config.rate.toString(),
-      '-t', config.type,
-      options.enhanced ? '--enhanced' : '--no-enhanced'
-    ]);
+    // Directly invoke the test logic with predefined config
+    await runTest({
+      wallets: config.wallets,
+      duration: config.duration,
+      rate: config.rate,
+      type: config.type,
+      enhanced: options.enhanced
+    });
   });
 
 // Environment check command
