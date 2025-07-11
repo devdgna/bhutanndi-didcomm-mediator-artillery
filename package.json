@@ -14,7 +14,15 @@
     "test:stress": "make stress-test",
     "clean": "make clean",
     "install-deps": "npm install",
-    "check-configs": "make check-configs"
+    "check-configs": "make check-configs",
+    "cli": "node cli.js",
+    "test:enhanced": "node cli.js test --enhanced",
+    "test:quick-small": "node cli.js quick small",
+    "test:quick-medium": "node cli.js quick medium",
+    "test:quick-large": "node cli.js quick large",
+    "report:enhanced": "node cli.js report",
+    "check": "node cli.js check",
+    "config:create": "node cli.js config --create all"
   },
   "keywords": [
     "artillery",
@@ -33,8 +41,10 @@
     "@credo-ts/node": "^0.5.15",
     "@hyperledger/aries-askar-nodejs": "^0.2.3",
     "artillery": "^2.0.23",
+    "commander": "^12.0.0",
     "dotenv": "^17.2.0",
-    "ethers": "^6.13.4"
+    "ethers": "^6.13.4",
+    "js-yaml": "^4.1.0"
   },
   "engines": {
     "node": ">=18.0.0"

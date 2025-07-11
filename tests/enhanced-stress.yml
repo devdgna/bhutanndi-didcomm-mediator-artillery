@@ -1,0 +1,59 @@
+config:
+  target: "https://animo-mediator-qa.ngotag.com"
+  phases:
+    # Progressive stress testing with multiple phases
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 25
+      name: "Initial Ramp"
+      
+    - duration: 120
+      arrivalRate: 25
+      rampTo: 75
+      name: "Major Ramp"
+      
+    - duration: 180
+      arrivalRate: 75
+      name: "High Sustained Load"
+      
+    - duration: 60
+      arrivalRate: 75
+      rampTo: 150
+      name: "Stress Peak"
+      
+    - duration: 120
+      arrivalRate: 150
+      name: "Maximum Stress"
+      
+    - duration: 180
+      arrivalRate: 150
+      rampTo: 25
+      name: "Gradual Recovery"
+      
+    - duration: 60
+      arrivalRate: 25
+      rampTo: 5
+      name: "Final Cooldown"
+      
+  processor: "./processor-enhanced.js"
+  environments:
+    NODE_NO_WARNINGS: 1
+  
+  http:
+    timeout: 45
+    pool: 100
+  
+  # Stress test thresholds
+  ensure:
+    thresholds:
+      - http.response_time.p95: 15000
+      - http.response_time.p99: 30000
+      - didcomm.connection.duration.p95: 20000
+      - didcomm.mediation.duration.p95: 15000
+      - didcomm.test.failed.rate: 0.05  # Max 5% failure rate
+
+scenarios:
+  - name: "Progressive Stress Test"
+    weight: 100
+    flow:
+      - function: "connectToMediator"

@@ -1,0 +1,52 @@
+config:
+  target: "https://animo-mediator-qa.ngotag.com"
+  phases:
+    # Warm-up phase: Start slow to allow system preparation
+    - duration: 15
+      arrivalRate: 1
+      name: "Warm-up"
+    
+    # Gradual ramp-up: Increase load progressively
+    - duration: 45
+      arrivalRate: 2
+      rampTo: 8
+      name: "Ramp-up"
+    
+    # Sustained load: Maintain consistent load
+    - duration: 60
+      arrivalRate: 8
+      name: "Sustained Load"
+    
+    # Peak load: Test higher capacity
+    - duration: 30
+      arrivalRate: 12
+      name: "Peak Load"
+    
+    # Cool-down: Gradual reduction
+    - duration: 30
+      arrivalRate: 12
+      rampTo: 2
+      name: "Cool-down"
+      
+  processor: "./processor-enhanced.js"
+  environments:
+    NODE_NO_WARNINGS: 1
+  
+  # Performance and reliability settings
+  http:
+    timeout: 30
+    pool: 50
+  
+  # Enhanced metrics collection
+  ensure:
+    thresholds:
+      - http.response_time.p95: 5000
+      - http.response_time.p99: 10000
+      - didcomm.connection.duration.p95: 8000
+      - didcomm.mediation.duration.p95: 5000
+
+scenarios:
+  - name: "Enhanced DIDComm Mediator Load Test"
+    weight: 100
+    flow:
+      - function: "connectToMediator"
