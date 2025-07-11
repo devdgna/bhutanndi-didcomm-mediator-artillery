@@ -23,14 +23,14 @@ make report FILE=results-basic-*.json
 1. **Clone and setup**:
    ```bash
    git clone <repository-url>
-   cd ngotag-artillery
+   cd bhutanndi-didcomm-mediator-artillery
    npm install
    ```
 
 2. **Configure environment**:
    ```bash
    cp .env.example .env
-   # Edit .env with your mediator invitation URL and DID method
+   # Edit .env with your mediator invitation URL and DID method (optional)
    ```
 
 3. **Run basic test**:
@@ -57,20 +57,7 @@ INVITATION_URL=https://your-mediator.example.com/invitation?oob=...
 
 # DID method (optional, default: ethr)
 DID_METHOD=ethr  # Options: ethr, key, sov
-
-# Ethereum/Polygon RPC (for did:ethr only)
-ETHEREUM_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/your-api-key
-ETHEREUM_NETWORK=polygon:mumbai
 ```
-
-### DID Method Options
-
-- **`ethr`**: Ethereum/Polygon DIDs (requires RPC endpoint)
-- **`key`**: Simple key-based DIDs (no external dependencies)
-- **`sov`**: Sovrin-style DIDs (legacy support)
-
-## Test Scenarios
-- TODO
 
 ### Basic Tests
 ```bash
@@ -111,21 +98,11 @@ Each virtual wallet performs:
 ## Configuration
 
 ### Default Settings
-- **Target**: `https://animo-mediator-qa.ngotag.com` (change with `TARGET=`)
+- **Target**: `https://<your-mediator-url>` (change with `TARGET=`)
 - **Wallet Count**: 100 (change with `WALLETS=`)
 - **Duration**: 30 seconds (change with `DURATION=`)
 - **Rate**: 5 wallets/second (change with `RATE=`)
 
-### Environment Variables
-```bash
-# Target mediator endpoint
-export TARGET=https://your-mediator.example.com
-
-# Test parameters
-export WALLETS=250
-export DURATION=45
-export RATE=8
-```
 
 ## DID Method Configuration
 
@@ -135,11 +112,6 @@ This load testing suite supports multiple DID methods:
 - **`did:ethr`** - Ethereum/Polygon DIDs (default)
 - **`did:key`** - Self-contained cryptographic DIDs  
 - **`did:sov`** - Sovrin/Indy ledger DIDs
-
-### Environment Variables
-```bash
-# Set DID method (ethr, key, or sov)
-export DID_METHOD=ethr
 
 # For did:ethr - Polygon network configuration
 export ETHEREUM_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/your-key
@@ -156,7 +128,7 @@ export RATE=8
 # Test with did:ethr on Polygon Mumbai
 DID_METHOD=ethr make test-custom WALLETS=50
 
-# Test with did:key (fastest, no blockchain)
+# Test with did:key (fastest, no VDR referred)
 DID_METHOD=key make test-basic
 
 # Test with did:sov (Indy ledger)
@@ -186,21 +158,6 @@ make test-custom CLOUD=true
 make dashboard-setup
 ```
 
-## Repository Structure
-
-```
-├── tests/
-│   ├── processor.js           # DIDComm agent logic (Credo-TS)
-│   ├── basic.yml             # Basic mediation test scenario
-│   ├── burst.yml             # High-load burst scenario
-│   ├── sustained.yml         # Long-duration scenario
-│   └── stress.yml            # Maximum load scenario
-├── Makefile                  # Test automation and utilities
-├── package.json             # Dependencies (Artillery + Credo-TS)
-├── README.md                # This documentation
-└── docs.md                  # Detailed Artillery guide
-```
-
 ## Development
 
 ### Dependencies
@@ -211,7 +168,7 @@ make dashboard-setup
 ### Key Features
 - **Real DIDComm Testing** - Uses actual Credo-TS agents
 - **Protocol Compliance** - Tests DIDComm v1 and Pickup v2
-- **Scalable Architecture** - Handles 15,000+ concurrent wallets
+- **Scalable Architecture** - Can handle 15,000+ concurrent wallets
 - **Comprehensive Reporting** - Detailed metrics and HTML reports
 - **Cloud Integration** - Artillery Cloud support
 - **Automation Ready** - Makefile-based workflows
@@ -291,20 +248,6 @@ make clean
 - **Askar**: Secure storage for wallets
 - **Mediator**: Animo DIDComm mediator (QA environment)
 
-## Structure
-
-```
-├── Makefile                     # Main automation commands
-├── package.json                 # Dependencies and scripts
-├── MODERN_ARTILLERY_GUIDE.md    # Complete documentation
-└── load-test/
-    ├── processor.js             # Agent logic and scenarios
-    ├── mediation.yml            # Basic mediation test
-    ├── burst-test.yml           # Burst load scenario
-    ├── sustained-test.yml       # Long duration scenario
-    └── stress-test.yml          # Maximum load scenario
-```
-
 ## Requirements
 
 - Node.js 18+
@@ -321,5 +264,3 @@ Recent test results show:
 - **Scales to 500+ concurrent** wallet connections
 
 ---
-
-Built for testing Animo DIDComm mediator at https://animo-mediator-qa.ngotag.com
