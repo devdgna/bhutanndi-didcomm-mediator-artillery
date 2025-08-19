@@ -1,266 +1,155 @@
-# DIDComm Mediator Load Testing with Artillery
+# DIDComm Mediator Load Testing (Minimal Harness)
 
-A comprehensive load testing suite for DIDComm mediators using Artillery and Credo-TS. This repository provides automated testing scenarios to validate mediator performance, scalability, and protocol compliance.
+A lean Artillery + Credo-TS harness to exercise a DIDComm mediator with real agent workflows (invitation -> connection -> mediation -> pickup) while keeping the runtime deterministic and lightweight.
 
-## Quick Start
+## Key Features
+- Minimal file set (Makefile, wrapper, processor, basic scenario)
+- Deterministic dependency versions (no implicit feature creep)
+- Preload shim normalizes `fetch` (avoids historical `URLSearchParams` / `node-fetch` mismatch)
+- Custom arrival rate & duration via `make test-custom`
+- Built‑in custom metrics (connection, mediation, pickup)
 
-```bash
-# Install dependencies
-npm install
-
-# Run basic test (10 wallets)
-make test-basic
-
-# Run custom test
-make test-custom WALLETS=50 DURATION=30 RATE=2
-
-# Generate HTML report
-make report FILE=results-basic-*.json
+## Repository Layout
 ```
-
-## Quick Start
-
-1. **Clone and setup**:
-   ```bash
-   git clone <repository-url>
-   cd bhutanndi-didcomm-mediator-artillery
-   npm install
-   ```
-
-2. **Configure environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your mediator invitation URL and DID method (optional)
-   ```
-
-3. **Run basic test**:
-   ```bash
-   make test-basic
-   ```
+Makefile              # Test targets & dynamic custom scenario generation
+run-artillery.sh      # Wrapper that injects preload & runtime flags
+preload-fetch.js      # Undici-based fetch shim + node-fetch interception
+tests/basic.yml       # Example phased scenario
+tests/processor.js    # Virtual user logic (Credo agent lifecycle)
+```
 
 ## Prerequisites
+- Node.js 20+ (recommend 22 LTS for latest undici)
+- `make`, `bash`, `curl` (optional for health check)
 
-- **Node.js 18+** (required for Credo-TS and Artillery)
-- **Git** for cloning the repository
-- **Make** for running test commands
-- **curl** for health checks (optional)
-
-## Configuration
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
+## Install
 ```bash
-# Mediator invitation URL (required)
-INVITATION_URL=https://your-mediator.example.com/invitation?oob=...
-
-# DID method (optional, default: ethr)
-DID_METHOD=ethr  # Options: ethr, key, sov
+npm install
 ```
 
-### Basic Tests
+## Environment
+Create `.env` (only one variable strictly required):
 ```bash
-make test-basic          # 10 wallets, quick validation
-make test-medium         # 100 wallets, moderate load
-make test-large          # 500 wallets, high load
+INVITATION_URL=https://your-mediator.example.com/invitation?oob=...  # required
+# DID_METHOD=key   # currently only `did:key` flow kept; other methods optional (see Extending)
 ```
 
-### Custom Tests
+## Run Tests
+Basic (uses `tests/basic.yml` phases):
 ```bash
-# Custom wallet count
-make test-custom WALLETS=250
+make test-basic
+```
+Custom (single phase generated on the fly):
+```bash
+make test-custom WALLETS=50 DURATION=30 RATE=2
+```
+Parameters:
+- `WALLETS` (informational label in report; actual concurrency is arrival pattern) 
+- `DURATION` seconds of the single phase
+- `RATE` virtual wallets per second (Artillery `arrivalRate`)
 
-# Custom rate and duration
-make test-custom WALLETS=100 DURATION=60 RATE=3
-
-# Ramp test (gradual increase)
-make test-ramp START=2 END=10 DURATION=120
+Example higher load:
+```bash
+make test-custom WALLETS=300 DURATION=60 RATE=10
 ```
 
-### Stress Tests
-```bash
-make test-burst          # 500 wallets in 10 seconds
-make test-sustained      # 6000 wallets over 5 minutes
-make stress-test         # Maximum load (15,000+ wallets)
+## Make Targets
+| Target | Description |
+|--------|-------------|
+| `make install` | Install dependencies |
+| `make test-basic` | Run predefined multi‑phase scenario |
+| `make test-custom WALLETS=.. DURATION=.. RATE=..` | Generate & run one-phase scenario |
+| `make report [FILE=results-*.json]` | Produce HTML report from JSON |
+| `make check-mediator` | HEAD request to target (quick reachability) |
+| `make clean` | Remove result/report/temp files |
+
+Result JSON filenames: `results-basic-<timestamp>.json` or `results-custom-<params>-<timestamp>.json`
+
+## Processor Flow & Metrics
+Each VU performs:
+1. Parse invitation (OOB) & create agent
+2. Establish connection & wait for completed state
+3. Send mediation request; await grant
+4. Execute message pickup (Pickup V2) once
+5. Shutdown agent cleanly
+
+Emitted metrics (names you can add thresholds for):
+- `didcomm.connection.duration` (histogram)
+- `didcomm.mediation.success` / `didcomm.mediation.failed` (counters)
+- `didcomm.pickup.duration` (histogram)
+- `didcomm.pickup.messages` (counter)
+
+Sample thresholds block (add inside a YAML config if you extend scenarios):
+```yaml
+config:
+  ensure:
+    thresholds:
+      - 'didcomm.connection.duration': { p95: 5000 }
+      - 'vusers.failed': { max: 0 }
 ```
 
-## What Gets Tested
+## Fetch Shim (Why `preload-fetch.js` Exists)
+A past issue arose from a transitive dependency mixing `node-fetch@2` / `ky-universal` with native WHATWG classes, causing `TypeError [ERR_INVALID_THIS]: Value of 'this' must be of type URLSearchParams` under load.
 
-Each virtual wallet performs:
+The wrapper (`run-artillery.sh`) always starts Node with:
+- `--require preload-fetch.js` (before Artillery workers spawn)
+- `--no-warnings` & DNS ordering flag
 
-1. **Endpoint Health Check** - Validates mediator is responding
-2. **DID Exchange** - Establishes connection with mediator
-3. **Mediation Request** - Requests mediation services
-4. **Message Pickup** - Tests message retrieval
-5. **Protocol Validation** - Verifies DIDComm v1 and Pickup v2 compliance
+`preload-fetch.js`:
+- Provides undici globals (`fetch`, `Headers`, `Request`, `Response`)
+- Intercepts any `require('node-fetch')` and returns an undici-backed shim
+- Patches `URLSearchParams` safe methods to prevent detached calls
+Result: Stable, uniform fetch stack across all worker processes.
 
-## Configuration
+Always launch tests via `make` (or `./run-artillery.sh`) so the preload runs. Running `npx artillery` directly bypasses the shim and may reintroduce the error.
 
-### Default Settings
-- **Target**: `https://<your-mediator-url>` (change with `TARGET=`)
-- **Wallet Count**: 100 (change with `WALLETS=`)
-- **Duration**: 30 seconds (change with `DURATION=`)
-- **Rate**: 5 wallets/second (change with `RATE=`)
+## Extending (Optional DID Methods)
+Currently only `did:key` flows are active. To experiment with other DID methods:
+1. Add needed dependencies (e.g. cheqd / ethr packages) carefully.
+2. Verify they do not bundle an outdated `node-fetch` without interception (the preload should still catch them, but validate).
+3. Set `DID_METHOD=ethr` (or another) in environment prior to running.
 
-
-## DID Method Configuration
-
-This load testing suite supports multiple DID methods:
-
-### Supported DID Methods
-- **`did:ethr`** - Ethereum/Polygon DIDs (default)
-- **`did:key`** - Self-contained cryptographic DIDs  
-- **`did:sov`** - Sovrin/Indy ledger DIDs
-
-# For did:ethr - Polygon network configuration
+If adding Ethereum-based methods you may also need:
+```bash
 export ETHEREUM_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/your-key
 export ETHEREUM_NETWORK=polygon:mumbai
-
-# Test parameters
-export WALLETS=250
-export DURATION=45
-export RATE=8
 ```
+Keep changes isolated; optional features can inflate the dependency tree and slow cold starts.
 
-### Usage Examples
+## Reports
+Generate HTML from latest result:
 ```bash
-# Test with did:ethr on Polygon Mumbai
-DID_METHOD=ethr make test-custom WALLETS=50
-
-# Test with did:key (fastest, no VDR referred)
-DID_METHOD=key make test-basic
-
-# Test with did:sov (Indy ledger)
-DID_METHOD=sov make test-custom WALLETS=100
-```
-
-## Reports and Monitoring
-
-### Generate Reports
-```bash
-# HTML report from latest test
 make report
-
-# Report from specific file
-make report FILE=results-custom-250w-20250710-123456.json
-
-# Open Artillery dashboard
-make dashboard
 ```
-
-### Cloud Integration
+From a specific file:
 ```bash
-# Run with Artillery Cloud reporting
-make test-custom CLOUD=true
-
-# Setup cloud credentials
-make dashboard-setup
+make report FILE=results-custom-300w-20250801-121500.json
 ```
+HTML file name: `report-<timestamp>.html`.
 
-## Development
+## Troubleshooting
+| Symptom | Fix |
+|---------|-----|
+| `INVITATION_URL` not set error / immediate failures | Provide valid OOB invitation in `.env` |
+| `ERR_INVALID_THIS` appears again | Ensure you used `make` / wrapper; delete `node_modules` & reinstall |
+| Native `askar` build issues | Use supported Node version (LTS), reinstall dependencies |
+| High memory with large RATE | Lower `RATE` or split into multiple runs |
+| Long connection times | Check mediator health / network latency |
 
-### Dependencies
-- **Artillery 2.0+** - Load testing framework
-- **Credo-TS 0.5+** - DIDComm agent implementation
-- **Askar** - Secure storage for credentials
-
-### Key Features
-- **Real DIDComm Testing** - Uses actual Credo-TS agents
-- **Protocol Compliance** - Tests DIDComm v1 and Pickup v2
-- **Scalable Architecture** - Can handle 15,000+ concurrent wallets
-- **Comprehensive Reporting** - Detailed metrics and HTML reports
-- **Cloud Integration** - Artillery Cloud support
-- **Automation Ready** - Makefile-based workflows
-
-### Troubleshooting
-
-**No logs on mediator?**
-- Ensure you're using `load-test/mediation.yml` or `processor.js`
-- Check that Credo-TS dependencies are installed
-- Verify mediator endpoint is accessible
-
-**High memory usage?**
-- Reduce `WALLETS` or `RATE` parameters
-- Use `test-basic` for initial validation
-- Monitor with `make report` after tests
-
-**Dependency conflicts?**
-- Delete `node_modules` and `package-lock.json`
-- Run `npm install` to reinstall clean dependencies
-- Use Node.js 18+ for best compatibility
-
-## Examples
-
-### Scale Testing
+Reset environment:
 ```bash
-# Progressive scale testing
-make test-custom WALLETS=10    # Baseline
-make test-custom WALLETS=50    # Small scale
-make test-custom WALLETS=100   # Medium scale
-make test-custom WALLETS=500   # Large scale
-```
-
-### Performance Benchmarking
-```bash
-# Different rates with same total
-make test-custom WALLETS=100 DURATION=50 RATE=2   # Slow and steady
-make test-custom WALLETS=100 DURATION=20 RATE=5   # Medium pace
-make test-custom WALLETS=100 DURATION=10 RATE=10  # Fast burst
-```
-
-### Endurance Testing
-```bash
-# Long-running tests
-make test-sustained                                # 5 minutes
-make test-custom DURATION=300 RATE=3              # Custom endurance
+rm -rf node_modules package-lock.json && npm install
 ```
 
 ## License
-
-ISC License - see package.json for details.
+ISC (see `package.json`).
 
 ## Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feat/feat-1`)
-3. Test your changes (`make test-basic`)
-4. Commit your changes (`git commit -m 'feat: some feats`)
-5. Push to branch (`git push origin feature/feat-1`)
-6. Open a Pull Request
+Lightweight contribution flow:
+1. Fork & branch
+2. Make change (keep scope minimal)
+3. `make test-basic` sanity run
+4. PR with summary & rationale for any new dependency
 
 ---
-
-# Stress testing
-make stress-test
-
-# View recent results
-make results
-
-# Clean up
-make clean
-```
-
-## Architecture
-
-- **Artillery**: Load testing framework
-- **Credo-TS**: DIDComm agent implementation
-- **Askar**: Secure storage for wallets
-- **Mediator**: Animo DIDComm mediator (QA environment)
-
-## Requirements
-
-- Node.js 18+
-- Artillery CLI
-- Make (for automation)
-- bc (for calculations)
-
-## Performance
-
-Recent test results show:
-- **100% connection success** rate for moderate loads
-- **5-25 second** end-to-end timing for mediation setup
-- **Successful message pickup** using Pickup v2 protocol
-- **Scales to 500+ concurrent** wallet connections
-
----
+Happy testing.

@@ -1,51 +1,39 @@
+require('dotenv').config();
+
+// Simplified: rely on native fetch in Node 22+, remove external polyfills that triggered ky-universal issues
+// If some dependency adds its own fetch polyfill, we let native implementation win.
+
 const { Agent, WsOutboundTransport, HttpOutboundTransport, MessagePickupModule, V2MessagePickupProtocol } = require("@credo-ts/core");
 const { agentDependencies } = require("@credo-ts/node");
 const { AskarModule } = require("@credo-ts/askar");
-const { CheqdModule } = require("@credo-ts/cheqd");
 const { ariesAskar } = require("@hyperledger/aries-askar-nodejs");
-
-// Load environment variables from .env file
-require('dotenv').config();
 
 // Get invitation URL from environment variable
 const invitationUrl = process.env.INVITATION_URL;
 if (!invitationUrl) {
-  throw new Error('INVITATION_URL environment variable is required. Please copy .env.example to .env and configure it.');
+  throw new Error('INVITATION_URL environment variable is required.');
 }
 
-// Environment variable to control DID method (did:ethr, did:key, or did:sov)
-const DID_METHOD = process.env.DID_METHOD || 'ethr';
-
-// Polygon Mumbai testnet RPC (free tier)
-const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || 'https://polygon-mumbai.g.alchemy.com/v2/demo';
-const ETHEREUM_NETWORK = process.env.ETHEREUM_NETWORK || 'polygon:mumbai';
+// Restrict DID method to key by default to avoid loading optional cheqd/ethr stacks that pull in ky-universal node-fetch chain
+const DID_METHOD = (process.env.DID_METHOD || 'key').toLowerCase();
+if (DID_METHOD === 'ethr') {
+  console.warn('DID_METHOD=ethr ignored in slim test mode. Using did:key to avoid extra HTTP stack.');
+}
 
 const initializeAgent = async (walletId, walletKey) => {
-  // Create agent configuration based on DID method
   const agentConfig = {
     label: "load-test-agent-" + walletId,
     walletConfig: { id: walletId, key: walletKey },
     useDidSovPrefixWhereAllowed: DID_METHOD === 'sov',
   };
-  
-  // Configure modules based on DID method
-  const modules = { 
+
+  const modules = {
     askar: new AskarModule({ ariesAskar }),
     messagePickup: new MessagePickupModule({
-      protocols: [new V2MessagePickupProtocol()]  // Explicitly use only Pickup v2
+      protocols: [new V2MessagePickupProtocol()]
     })
   };
-  
-  // Add Cheqd module for did:ethr support (works with Polygon too)
-  if (DID_METHOD === 'ethr') {
-    modules.cheqd = new CheqdModule({
-      networks: [{
-        network: ETHEREUM_NETWORK,
-        rpcUrl: ETHEREUM_RPC_URL,
-      }]
-    });
-  }
-  
+
   const agent = new Agent({
     config: agentConfig,
     dependencies: agentDependencies,
@@ -55,10 +43,7 @@ const initializeAgent = async (walletId, walletKey) => {
   agent.registerOutboundTransport(new HttpOutboundTransport());
   agent.registerOutboundTransport(new WsOutboundTransport());
   await agent.initialize();
-  
-  // Log which DID method is being used
-  console.log(walletId + " initialized with DID method: " + DID_METHOD);
-  
+  console.log(walletId + " initialized (DID method forced to: did:key)");
   return agent;
 };
 
@@ -137,7 +122,6 @@ async function connectToMediator(context, events, done) {
       const connectionDuration = Date.now() - connectionStartTime;
       console.log(walletId + " connection completed in " + connectionDuration + "ms!");
       
-      // Emit Artillery metrics for connection timing
       if (events) {
         events.emit('histogram', 'didcomm.connection.duration', connectionDuration);
         events.emit('counter', 'didcomm.connection.success', 1);
@@ -151,38 +135,24 @@ async function connectToMediator(context, events, done) {
         
         console.log(walletId + " mediation SUCCESS! ID: " + mediationRecord.id + " (took " + mediationDuration + "ms)");
         
-        // Emit Artillery metrics for mediation timing
         if (events) {
           events.emit('histogram', 'didcomm.mediation.duration', mediationDuration);
           events.emit('counter', 'didcomm.mediation.success', 1);
         }
         
-        // Test message pickup functionality with Pickup v2
         try {
           console.log(walletId + " testing message pickup (Pickup v2)...");
           const pickupStartTime = Date.now();
-          
-          // Check what pickup protocols are supported
           console.log(walletId + " pickup module registered: " + (agent.messagePickup ? 'yes' : 'no'));
-          
-          // Try to initiate message pickup (should use Pickup v2)
-          const pickupResult = await agent.mediationRecipient.initiateMessagePickup(mediationRecord);
+          await agent.mediationRecipient.initiateMessagePickup(mediationRecord);
           const pickupDuration = Date.now() - pickupStartTime;
-          
           console.log(walletId + " message pickup v2 initiated successfully (took " + pickupDuration + "ms)");
-          console.log(walletId + " pickup completed - Pickup v2 protocol working!");
-          
-          // Emit Artillery metrics for pickup timing
           if (events) {
             events.emit('histogram', 'didcomm.pickup.duration', pickupDuration);
             events.emit('counter', 'didcomm.pickup.success', 1);
           }
-          
         } catch (pickupError) {
           console.log(walletId + " message pickup failed: " + pickupError.message);
-          console.log(walletId + " pickup error type: " + pickupError.constructor.name);
-          
-          // Emit Artillery metrics for pickup failures
           if (events) {
             events.emit('counter', 'didcomm.pickup.failed', 1);
           }
@@ -192,7 +162,6 @@ async function connectToMediator(context, events, done) {
         console.log(walletId + " mediation failed: " + mediationError.message);
       }
     } else {
-      // Check final connection state
       if (connectionRecord) {
         const finalConnection = await agent.connections.getById(connectionRecord.id);
         console.log(walletId + " connection timeout. Final state: " + finalConnection.state);
@@ -204,7 +173,6 @@ async function connectToMediator(context, events, done) {
     console.log("Shutting down agent " + walletId + "...");
     await agent.shutdown();
     
-    // Try different callback approaches for Artillery
     if (typeof done === 'function') {
       done();
     } else {

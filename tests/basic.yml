@@ -1,5 +1,6 @@
 config:
-  target: "https://animo-mediator-qa.ngotag.com"
+  # target: "https://animo-mediator-qa.ngotag.com"
+  target: "https://qa-mediator.ngotag.com"
   phases:
     # Warm-up phase: 1 wallet per second for 10 seconds
     - duration: 10
