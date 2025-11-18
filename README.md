@@ -23,24 +23,20 @@ tests/processor.js    # Virtual user logic (Credo agent lifecycle)
 - `make`, `bash`, `curl` (optional for health check)
 
 ## Install
-```bash
+```
 npm install
 ```
 
 ## Environment
-Create `.env` (only one variable strictly required):
-```bash
-INVITATION_URL=https://your-mediator.example.com/invitation?oob=...  # required
-# DID_METHOD=key   # currently only `did:key` flow kept; other methods optional (see Extending)
-```
+Refer to `.env.example` for key value pairs to use.
 
 ## Run Tests
 Basic (uses `tests/basic.yml` phases):
-```bash
+```
 make test-basic
 ```
-Custom (single phase generated on the fly):
-```bash
+Custom (single phase generated):
+```
 make test-custom WALLETS=50 DURATION=30 RATE=2
 ```
 Parameters:
@@ -49,7 +45,7 @@ Parameters:
 - `RATE` virtual wallets per second (Artillery `arrivalRate`)
 
 Example higher load:
-```bash
+```
 make test-custom WALLETS=300 DURATION=60 RATE=10
 ```
 
@@ -110,7 +106,7 @@ Currently only `did:key` flows are active. To experiment with other DID methods:
 3. Set `DID_METHOD=ethr` (or another) in environment prior to running.
 
 If adding Ethereum-based methods you may also need:
-```bash
+```
 export ETHEREUM_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/your-key
 export ETHEREUM_NETWORK=polygon:mumbai
 ```
@@ -118,11 +114,11 @@ Keep changes isolated; optional features can inflate the dependency tree and slo
 
 ## Reports
 Generate HTML from latest result:
-```bash
+```
 make report
 ```
 From a specific file:
-```bash
+```
 make report FILE=results-custom-300w-20250801-121500.json
 ```
 HTML file name: `report-<timestamp>.html`.
@@ -137,7 +133,7 @@ HTML file name: `report-<timestamp>.html`.
 | Long connection times | Check mediator health / network latency |
 
 Reset environment:
-```bash
+```
 rm -rf node_modules package-lock.json && npm install
 ```
 
@@ -152,4 +148,4 @@ Lightweight contribution flow:
 4. PR with summary & rationale for any new dependency
 
 ---
-Happy testing.
+Happy testing!
