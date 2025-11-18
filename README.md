@@ -74,6 +74,7 @@ Emitted metrics (names you can add thresholds for):
 - `didcomm.mediation.success` / `didcomm.mediation.failed` (counters)
 - `didcomm.pickup.duration` (histogram)
 - `didcomm.pickup.messages` (counter)
+ - `didcomm.vu.failed` (counter)
 
 Sample thresholds block (add inside a YAML config if you extend scenarios):
 ```yaml
@@ -81,7 +82,7 @@ config:
   ensure:
     thresholds:
       - 'didcomm.connection.duration': { p95: 5000 }
-      - 'vusers.failed': { max: 0 }
+      - 'didcomm.vu.failed': { max: 0 }
 ```
 
 ## Fetch Shim (Why `preload-fetch.js` Exists)

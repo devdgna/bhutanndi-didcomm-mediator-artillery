@@ -160,6 +160,9 @@ async function connectToMediator(context, events, done) {
         
       } catch (mediationError) {
         console.log(walletId + " mediation failed: " + mediationError.message);
+        if (events) {
+          events.emit('counter', 'didcomm.mediation.failed', 1);
+        }
       }
     } else {
       if (connectionRecord) {
@@ -180,6 +183,9 @@ async function connectToMediator(context, events, done) {
     }
   } catch (error) {
     console.error(walletId + " failed:", error.message);
+    if (events) {
+      events.emit('counter', 'didcomm.vu.failed', 1);
+    }
     if (typeof done === 'function') {
       done(error);
     } else {
